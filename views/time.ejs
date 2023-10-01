@@ -1,0 +1,158 @@
+<%- include("page_top.ejs") %>
+<title>מסך עובדים</title>
+<body>
+<div id="AddForm">
+    <form id="employeeForm">
+        <input type="text" name="name" id="name" placeholder="שם" />
+        <input type="text" name="id" id="id" placeholder="מספר זיהוי" />
+        <input type="date" name="date" id="date" placeholder="תאריך" />
+        <input type="hidden" name="clockInTime" id="clockInTime" value="" />
+        <button type="button" onclick="clockIn();">כניסה</button>
+        <button type="button" onclick="addNewRow();">שלח</button>
+    </form>
+</div>
+
+<br />
+
+<hr>
+<hr />
+<button onclick="editRow(1);">ערוך</button>
+<hr />
+<button onclick="clockIn();">כניסה</button>
+<hr />
+
+<table>
+    <thead>
+    </thead>
+    <tbody id="mainTable"></tbody>
+</table>
+<script>
+    let raw_data = [];
+
+    function CreateTable() {
+        let str = "";
+        for (let line of raw_data) {
+            str += "<tr>";
+            str += "<td>" + line.name + "</td>";
+            str += "<td>" + line.id + "</td>";
+            str += "<td>" + line.date + "</td>";
+            str += "<td>" + line.clockIn + "</td>";
+            str += "<td>" + line.clockOut + "</td>";
+            str +=
+                "<td><button onclick=\"deleteRow(" +
+                line.idxOnServer +
+                ");\">מחק</button></td>";
+            str += "</tr>";
+        }
+        document.getElementById("mainTable").innerHTML = str;
+    }
+
+    async function getList() {
+        let response = await fetch("/List");
+        let data = await response.json();
+        raw_data = data;
+        CreateTable();
+    }
+
+    async function addNewRow() {
+        let name = document.getElementById("name").value;
+        let id = document.getElementById("id").value;
+        let date = document.getElementById("date").value;
+        let clockInTime = document.getElementById("clockInTime").value;
+
+        if (name.trim() !== "" && id.trim() !== "" && date.trim() !== "") {
+            let newRow = document.getElementById("mainTable").insertRow();
+            newRow.innerHTML =
+                "<td>" +
+                name +
+                "</td><td>" +
+                id +
+                "</td><td>" +
+                date +
+                "</td><td>" +
+                clockInTime +
+                "</td><td></td><td><button onclick=\"deleteRow(" +
+                raw_data.length +
+                ");\">מחק</button></td>";
+
+            let response = await fetch("/Add", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    name: name,
+                    id: id,
+                    date: date,
+                    clockIn: clockInTime,
+                    clockOut: "",
+                    idxOnServer: raw_data.length,
+                }),
+            });
+
+            document.getElementById("name").value = "";
+            document.getElementById("id").value = "";
+            document.getElementById("date").value = "";
+            document.getElementById("clockInTime").value = "";
+        }
+    }
+
+    async function deleteRow(idx) {
+        let objToServer = {};
+        objToServer.idx = idx;
+        let response = await fetch("/Delete", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(objToServer),
+        });
+        getList();
+    }
+
+    async function clockIn() {
+        let now = new Date();
+        let hours = now.getHours();
+        let minutes = now.getMinutes();
+        let seconds = now.getSeconds();
+        let formattedTime = hours + ":" + minutes + ":" + seconds;
+
+        document.getElementById("clockInTime").value = formattedTime;
+    }
+    function populateEmployeeSelect() {
+        const select = document.getElementById("employeeSelect");
+        select.innerHTML = '<option value="-1">בחר עובד</option>'; // נקה את ה-<select>
+        for (let i = 0; i < raw_data.length; i++) {
+            const employee = raw_data[i];
+            const option = document.createElement("option");
+            option.value = i;
+            option.text = employee.name;
+            select.appendChild(option);
+        }
+    }
+    function selectEmployee() {
+        const select = document.getElementById("employeeSelect");
+        const selectedIndex = select.value;
+        if (selectedIndex !== "-1") {
+            const selectedEmployee = raw_data[selectedIndex];
+            // כאן תוכל להשתמש ב-selectedEmployee להצגת הפרטים של העובד באופן מתאים, למשל באמצעות innerHTML או כל אמצעי ההצגה שברצונך.
+            // לדוגמה:
+            document.getElementById("name").value = selectedEmployee.name;
+            document.getElementById("id").value = selectedEmployee.id;
+            document.getElementById("date").value = selectedEmployee.date;
+            document.getElementById("clockInTime").value = selectedEmployee.clockIn;
+        } else {
+            // אם המשתמש בחר את האופציה הריקה
+            // אפשר לנקות את השדות או להציג הודעה מתאימה
+            document.getElementById("name").value = "";
+            document.getElementById("id").value = "";
+            document.getElementById("date").value = "";
+            document.getElementById("clockInTime").value = "";
+        }
+    }
+
+
+    getList();
+</script>
+<%- include("page_bottom.ejs")%>
+</body>
